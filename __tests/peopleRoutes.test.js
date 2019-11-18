@@ -57,8 +57,7 @@ describe('/api/people routes', () => {
       );
     });
     // using async/await
-    it('should filter users using the is_attending query string', async () => {
-      try {
+    it('should filter users using the attending query string', async () => {
         // seed the db
         await Promise.all([
           Person.create(person1),
@@ -68,7 +67,7 @@ describe('/api/people routes', () => {
 
         // grab the response
         const isAttendingResponse = await request(app).get(
-          '/api/people/?is_attending=true'
+          '/api/people/?attending=true'
         );
 
         // test our assertions
@@ -87,18 +86,15 @@ describe('/api/people routes', () => {
         );
 
         const isNotAttendingResponse = await request(app)
-          .get('/api/people/?is_attending=false')
+          .get('/api/people/?attending=false')
           .expect('Content-Type', /json/) // you can still chain the built in supertest methods if you want when using async/await
           .expect(200);
 
         const notAttendingPeople = isNotAttendingResponse.body;
         expect(notAttendingPeople).toEqual([expect.objectContaining(person2)]);
-      } catch (err) {
-        fail(err);
-      }
     });
 
-    it('should return users and their Dishes using `include_dishes=true` query string', async () => {
+    it('should return users and their Dishes using include_dishes=true query string', async () => {
       try {
         const [mark, russell, ryan] = await Promise.all([
           Person.create(person1),
@@ -110,27 +106,183 @@ describe('/api/people routes', () => {
           Dish.create({ ...dish1, personId: mark.id }),
           Dish.create({ ...dish2, personId: ryan.id }),
         ]);
-        // your code below
-      } catch (err) {
-        fail(err);
-      }
+        
+        await request(app)
+          .get('/api/people/?include_dishes=true')
+          .expect('Content-Type', /json/)
+          .expect(200)
+          .then(response => {
+            const people = response.body;
+            expect(people.length).toBe(2);
+            expect(people).toEqual(
+              expect.arrayContainer([
+                expect.objectContaining(person1,
+                  expect.arrayContainer([
+                    expect.objectContaining(dish1)
+                  ])),
+                  expect.objectContaining(person2,
+                    expect.arrayContaining(null)),
+                  expect.objectContainer([
+                    expect.objectContaining(dish3)
+                  ])
+              ])
+            )
+          })
+          } catch (err) {
+            fail(err);
+          }
+      });
     });
-  });
-  xdescribe('POST to /api/people', () => {
+  describe('POST to /api/people', () => {
     it('should create a new person and return that persons information if all the required information is given', async () => {
-      // HINT: You will be sending data then checking response. No pre-seeding required
-      // Make sure you test both the API response and whats inside the database anytime you create, update, or delete from the database
+        const postRequest = await Person.create( { name: 'meow', attending: true })
+        await request(app)
+          .post('/api/people')
+          .expect('Content-Type', /json/)
+          .expect(202)
+          .then(response => {
+            const people = response.body;
+            expect(people.length).toBe(1);
+            expect(people).toEqual(
+              expect.arrayContainer([
+                expect.objectContainer(postRequest)
+              ])
+            );
+          })
+    })
+    it('should return status code 400 if missing required information', async () => {
+        const postRequest = await Person.create( { name: 'null', } )
+        await request(app)
+          .post('/api/people')
+          .expect('Content-Type', /json/)
+          .expect(400)
+          .then(response => {
+            expect(people.length).toBe(0);
+          })
     });
-    it('should return status code 400 if missing required information', async () => {});
   });
 
-  xdescribe('PUT to /api/people/:id', () => {
-    it('should update a persons information', async () => {});
-    it('should return a 400 if given an invalid id', async () => {});
+  describe('PUT to /api/people/:id', () => {
+    it('should update a persons information', async () => {
+        const [mark, russell, ryan] = await Promise.all([
+          Person.create(person1),
+          Person.create(person2),
+          Person.create(person3),
+        ]);
+
+        const [turk, pie] = await Promise.all([
+          Dish.create({ ...dish1, personId: mark.id }),
+          Dish.create({ ...dish2, personId: ryan.id }),
+        ]);
+
+        const updateRequest = { id: 1, name: 'meow', attending: true }
+
+        await request(app)
+          .put('/api/people/1')
+          .expect('Content-Type', /json/)
+          .expect(202)
+          .then(response => {
+            const people = response.body;
+            expect(people.length).toBe(3);
+            expect(people).toEqual(
+              expect.arrayContaining([
+                expect.objectContaining(updateRequest),
+                expect.objectContaining(person2),
+                expect.objectContaining(person3),
+              ])
+            );
+          })
+    });
+
+    it('should return a 400 if given an invalid id', async () => {
+        const [mark, russell, ryan] = await Promise.all([
+          Person.create(person1),
+          Person.create(person2),
+          Person.create(person3),
+        ]);
+
+        const [turk, pie] = await Promise.all([
+          Dish.create({ ...dish1, personId: mark.id }),
+          Dish.create({ ...dish2, personId: ryan.id }),
+        ]);
+
+        const updateRequest = { name: 'meow', attending: true }
+
+        await request(app)
+          .put('/api/people/4')
+          .expect('Content-Type', /json/)
+          .expect(400)
+          .then(response => {
+            const people = response.body;
+            expect(people.length).toBe(3);
+            expect(people).toEqual(
+              expect.arrayContaining([
+                expect.objectContaining(person1),
+                expect.objectContaining(person2),
+                expect.objectContaining(person3),
+              ])
+            );
+          })
+    });
   });
 
-  xdescribe('DELETE to /api/people/:id', () => {
-    it('should remove a person from the database', async () => {});
-    it('should return a 400 if given an invalid id', async () => {});
+  describe('DELETE to /api/people/:id', () => {
+    it('should remove a person from the database', async () => {
+        const [mark, russell, ryan] = await Promise.all([
+          Person.create(person1),
+          Person.create(person2),
+          Person.create(person3),
+        ]);
+
+        const [turk, pie] = await Promise.all([
+          Dish.create({ ...dish1, personId: mark.id }),
+          Dish.create({ ...dish2, personId: ryan.id }),
+        ]);
+
+        const deleteRequest = { id: 1, name: 'meow', attending: true }
+
+        await request(app)
+          .delete('/api/people/1')
+          .expect('Content-Type', "text/html; charset=utf-8")
+          .expect(202)
+          .then(response => {
+            const people = response.body;
+            expect(people.length).toBe(2);
+            expect(people).toEqual(
+              expect.arrayContaining([
+                expect.objectContaining(person2),
+                expect.objectContaining(person3),
+              ])
+            );
+          })
+    });
+    it('should return a 400 if given an invalid id', async () => {
+        const [mark, russell, ryan] = await Promise.all([
+          Person.create(person1),
+          Person.create(person2),
+          Person.create(person3),
+        ]);
+
+        const [turk, pie] = await Promise.all([
+          Dish.create({ ...dish1, personId: mark.id }),
+          Dish.create({ ...dish2, personId: ryan.id }),
+        ]);
+
+        await request(app)
+          .delete('/api/people/4')
+          .expect('Content-Type', "text/html; charset=utf-8")
+          .expect(400)
+          .then(response => {
+            const people = response.body;
+            expect(people.length).toBe(3);
+            expect(people).toEqual(
+              expect.arrayContaining([
+                expect.objectContaining(person1),
+                expect.objectContaining(person2),
+                expect.objectContaining(person3),
+              ])
+            );
+          })
+    });
   });
 });

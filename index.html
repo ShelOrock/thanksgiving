@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html>
+    <style>
+        .attending {
+            color: red;
+        }
+    </style>
+    <head>
+        <title>Thanksgiving</title>
+        <script src="https://unpkg.com/react@16/umd/react.development.js" crossorigin></script>
+        <script src="https://unpkg.com/react-dom@16/umd/react-dom.development.js" crossorigin></script>
+        <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.19.0/axios.js"></script>
+        <script src='https://cdnjs.cloudflare.com/ajax/libs/react-router-dom/5.0.1/react-router-dom.js'></script>
+    </head>
+    <body>
+        <div id='app'></div>
+    </body>
+    <script type='text/babel'>
+        const { Component } = React;
+        const { render } = ReactDOM;
+        const { HashRouter, Route, Switch, Link } = ReactRouterDOM;
+
+        const app = document.querySelector('#app');
+
+        const Nav = ({ people, dishes }) => {
+            return (
+                <nav>
+                    <Link to='/'>Home</Link>
+                    <Link to='/attending'>Attending ({ people.filter(person => person.attending).length} )</Link>
+                    <Link to='/dishes'>Dishes({ dishes.length })</Link>
+                </nav>
+            );
+        }
+
+        const PeopleAndDishes = ({ people, dishes }) => {
+            const processed = people.filter(person => person.attending).map(person => {
+                return { ...person, dishBringing: dishes.filter(dish => dish.personId === person.id) }
+            })
+
+            return (
+                <ul>
+                    {
+                        processed.map( person => {
+                            return <li key={ person.id }>
+                                { person.name } is bringing:
+                                    <ul>
+                                        {
+                                            person.dishBringing.length
+                                            ? person.dishBringing.map(dish => <li key={ dish.id }>{ dish.name }</li>)
+                                            : <li>Nothing</li>
+                                        }
+                                    </ul>
+                            </li>
+                        })
+                    }
+                </ul>
+            )
+        }
+
+        const destroy = (person) => {
+            axios.delete(`/api/people/${person.id}`)
+            .then(res => res.data)
+            .then(people => this.setState({ people }))
+        }
+
+        const changeAttendance = (person) => {
+            axios.put(`/api/people/${person.id}`, { attending: !person.attending })
+            .then(res => console.log(res))
+            .then(people => this.setState({ people }))
+        }
+
+        const Attending = ({ people }) => {
+            return (
+                <ul>
+                    {
+                        people.map(person => {
+                            return (
+                                <li key={ person.id } className={ person.attending ? 'attending' : '' }>
+                                        { person.name }
+                                    <button onClick={ () => changeAttendance(person) }>
+                                        change attendance
+                                    </button>
+                                    <button onClick={ () => destroy(person) }>
+                                        Uninvite
+                                    </button>
+                                </li>
+                            )
+                        })
+                    }
+                </ul>
+            )
+        }
+
+        class App extends Component {
+            constructor() {
+                super();
+                this.state = {
+                    people: [],
+                    dishes: []
+                }
+            }
+
+            componentDidMount() {
+                Promise.all([ 'people', 'dishes' ].map( item => axios.get(`/api/${item}`)))
+                    .then(responses => responses.map(response => response.data))
+                    .then(([ people, dishes ]) => this.setState({ people, dishes }))
+            }
+
+            render() {
+                const { people, dishes } = this.state;
+
+                return (
+                    <HashRouter>
+                    <Nav people={ people } dishes={ dishes }/>
+                        <Switch>
+                            <Route exact path='/' render={() => <PeopleAndDishes people={ people } dishes={ dishes } /> } />
+                            <Route path='/attending' render={() => <Attending people={ people } /> } />
+                        </Switch>
+                    </HashRouter>
+                );
+            }
+        }
+
+        render(<App />, app)
+    </script>
+</html>
