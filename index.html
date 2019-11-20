@@ -58,37 +58,30 @@
             )
         }
 
-        const destroy = (person) => {
-            axios.delete(`/api/people/${person.id}`)
-            .then(res => res.data)
-            .then(people => this.setState({ people }))
-        }
-
-        const changeAttendance = (person) => {
-            axios.put(`/api/people/${person.id}`, { attending: !person.attending })
-            .then(res => console.log(res))
-            .then(people => this.setState({ people }))
-        }
-
-        const Attending = ({ people }) => {
+        const Attending = ({ people, changeAttendance, destroy }) => {
             return (
-                <ul>
-                    {
-                        people.map(person => {
-                            return (
-                                <li key={ person.id } className={ person.attending ? 'attending' : '' }>
-                                        { person.name }
-                                    <button onClick={ () => changeAttendance(person) }>
-                                        change attendance
-                                    </button>
-                                    <button onClick={ () => destroy(person) }>
-                                        Uninvite
-                                    </button>
-                                </li>
-                            )
-                        })
-                    }
-                </ul>
+                <div>
+                    <ul>
+                        {
+                            people.map(person => {
+                                return (
+                                    <li key={ person.id } className={ person.attending ? 'attending' : '' }>
+                                            { person.name }
+                                        <button onClick={ () => changeAttendance(person) }>
+                                            change attendance
+                                        </button>
+                                        <button onClick={ () => destroy(person) }>
+                                            Uninvite
+                                        </button>
+                                    </li>
+                                )
+                            })
+                        }
+                    </ul>
+                    <input type='text' />
+                    <input type='text' />
+                    <button>Add Guest</button>
+                </div>
             )
         }
 
@@ -107,15 +100,31 @@
                     .then(([ people, dishes ]) => this.setState({ people, dishes }))
             }
 
+            destroy = (person) => {
+                const { people } = this.state;
+                axios.delete(`/api/people/${person.id}`)
+                .then(res => res.data)
+                .then(people => this.setState({ people: people }))
+            }
+
+            changeAttendance = (person) => {
+                const { people } = this.state;
+                axios.put(`/api/people/${person.id}`, {attending: !person.attending })
+                .then(res => {
+                    this.setState({ people: people.map(_person => _person.id === res.data.id ? res.data : _person) })
+                })
+            }
+
             render() {
                 const { people, dishes } = this.state;
+                console.log(people)
 
                 return (
                     <HashRouter>
                     <Nav people={ people } dishes={ dishes }/>
                         <Switch>
                             <Route exact path='/' render={() => <PeopleAndDishes people={ people } dishes={ dishes } /> } />
-                            <Route path='/attending' render={() => <Attending people={ people } /> } />
+                            <Route path='/attending' render={() => <Attending people={ people } changeAttendance={ this.changeAttendance } destroy={ this.destroy } /> } />
                         </Switch>
                     </HashRouter>
                 );

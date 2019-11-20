@@ -36,18 +36,25 @@ router.get("/:id", (req, res, next) => {
 })
 
 router.delete('/:id', (req, res, next) => {
-    Person.findOne( {
-        where: { id: req.param.id }
-    } )
-    .then((person) => res.send(person))
-    .catch(e => console.log(e))
+    Person.destroy( {
+        where: { id: req.params.id }
+    })
+    .then(() => Person.findAll())
+    .then(people => res.send(people))
+
 })
 
 router.put('/:id', (req, res, next) => {
     Person.findOne( {
-        where: { id: req.param.id }
-    } )
-    .then((person) => res.send(person))
+        where: { id: req.params.id }
+    })
+     .then(person => {
+         Object.keys(req.body).forEach(key => {
+             person[key] = req.body[key]
+         })
+         statusCode = 200;
+         res.send(person);
+     })
     .catch(e => console.log(e))
 })
 
